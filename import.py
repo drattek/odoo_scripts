@@ -40,12 +40,34 @@ for index, row in df.iterrows():
 
     product_data = {
 
+        "id": row["id_external"],  # id_external OTRO CAMPO EN BD
+        "description": row["Description"],  # Description 
         "name": row["name"],  # Product Name
-        "lst_price": row["lst_price"],  # Sales price
-        "standard_price": row["standard_price"],  # Cost
-        "type": "consu",  # Product type: 'product', 'consu', or 'service'
-        #"uom_id": row["uom_id"],  # Unit of Measure ID
         "default_code": row["default_code"],  # Internal Reference / SKU
+        "x_studio_xcross": row["xcross"],  # xcross OTRO CAMPO EN BD
+        "standard_price": row["standard_price"],  # Cost
+        "lst_price": row["lst_price"],  # Sales price
+        # "uom_id": row["uom_id"],  # ERROR por tipo de campo many2one
+        "barcode": row["barcode"],  # barcode
+        "type": "consu",  # Product type: 'product', 'consu', or 'service'
+        # "taxes_id": row["taxes_id"],  # ERROR por tipo de campo many2many
+        # "supplier_taxes_id": row["supplier_taxes_id"],  # ERROR por tipo de campo many2many
+        "is_storable": row["is_storable"],  # is_storable
+        "invoice_policy": row["invoice_policy"],  # invoice_policy
+        # "categ_id": row["categ_id"],  # ERROR por tipo de campo many2one
+        # "pos_categ_id": row["pos_categ_id"],  # ERROR por tipo de campo many2many
+        "sale_ok": row["sale_ok"],  # sale_ok
+        "purchase_ok": row["purcahse_ok"],  # purcahse_ok
+        "available_in_pos": row["available_in_pos"],  # available_in_pos
+        "is_published": row["is_published"],  # is_published
+        "self_order_available": row["self_order_available"],  # self_order_available
+        # "route_ids/id": row["`route_ids/id`"],  # ERROR por tipo de campo many2many
+        # "categoria": row["categoria"],  # ERROR No hay como tal un campo de categoria
+        # "CVE_LINEA": row["CVE_LINEA"],  # ERROR No hay como tal un campo en la BD
+        # "cve_linea2": row["cve_linea2"],  # ERROR No hay como tal un campo en la BD
+        # "clave_SAT": row["clave_SAT"],  # no se si sea hs_code en BD, que tiene como etiqueta Código SA
+        # "UBICACION": row["UBICACION"],  # ERROR de las 3 opciones de ubicacion las 3 son many2one
+
     }
 
     try:
@@ -56,5 +78,5 @@ for index, row in df.iterrows():
         )
         print(f"Created product with ID {product_id}: {product_data['name']}")
     except Exception as e:
-        print(f"Failed to create product {product_data['name']}: {e}")
+        print(f"Failed to create product {product_data['name']}: {e}\n")
 
