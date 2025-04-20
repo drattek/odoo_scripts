@@ -38,9 +38,25 @@ df = pd.read_excel(file_path, sheet_name="Sheet1")  # Replace "Sheet1" with your
 
 for index, row in df.iterrows():
 
+    # Resolve the Many2one field for `unspsc_code_id`
+    unspsc_code = str(row["clave_SAT"]).zfill(8) # Assuming this is the UNSPSC code from your Excel file
+    #unspsc_code = '01010101'
+    unspsc_record = models.execute_kw(
+        db, uid, password,
+        "product.unspsc.code",  # The model name for UNSPSC codes
+        "search_read",
+        [[["code", "=", unspsc_code]], ["id"]]  # Assuming "name" is the field holding the UNSPSC code
+    )
+
+    if unspsc_record:
+        data = {"unspsc_code_id": unspsc_record[0]["id"]}
+    else:
+        print(f"UNSPSC Code '{unspsc_code}' not found. Skipping product '{row['name']}'.")
+        continue
+
     product_data = {
 
-        "id": row["id_external"],  # id_external OTRO CAMPO EN BD
+        #"id": row["id_external"],  # id_external OTRO CAMPO EN BD
         "description": row["Description"],  # Description 
         "name": row["name"],  # Product Name
         "default_code": row["default_code"],  # Internal Reference / SKU
@@ -48,7 +64,7 @@ for index, row in df.iterrows():
         "standard_price": row["standard_price"],  # Cost
         "lst_price": row["lst_price"],  # Sales price
         # "uom_id": row["uom_id"],  # ERROR por tipo de campo many2one
-        "barcode": row["barcode"],  # barcode
+        #"barcode": row["barcode"],  # barcode
         "type": "consu",  # Product type: 'product', 'consu', or 'service'
         # "taxes_id": row["taxes_id"],  # ERROR por tipo de campo many2many
         # "supplier_taxes_id": row["supplier_taxes_id"],  # ERROR por tipo de campo many2many
@@ -58,14 +74,16 @@ for index, row in df.iterrows():
         # "pos_categ_id": row["pos_categ_id"],  # ERROR por tipo de campo many2many
         "sale_ok": row["sale_ok"],  # sale_ok
         "purchase_ok": row["purcahse_ok"],  # purcahse_ok
-        "available_in_pos": row["available_in_pos"],  # available_in_pos
-        "is_published": row["is_published"],  # is_published
-        "self_order_available": row["self_order_available"],  # self_order_available
+        #"available_in_pos": row["available_in_pos"],  # available_in_pos
+        #"is_published": row["is_published"],  # is_published
+        #"self_order_available": row["self_order_available"],  # self_order_available
         # "route_ids/id": row["`route_ids/id`"],  # ERROR por tipo de campo many2many
         # "categoria": row["categoria"],  # ERROR No hay como tal un campo de categoria
         # "CVE_LINEA": row["CVE_LINEA"],  # ERROR No hay como tal un campo en la BD
         # "cve_linea2": row["cve_linea2"],  # ERROR No hay como tal un campo en la BD
-        # "clave_SAT": row["clave_SAT"],  # no se si sea hs_code en BD, que tiene como etiqueta Código SA
+        "unspsc_code_id": data["unspsc_code_id"],  # no se si sea hs_code en BD, que tiene como etiqueta Código SA
+        # no se si sea hs_code en BD, que tiene como etiqueta Código SA
+
         # "UBICACION": row["UBICACION"],  # ERROR de las 3 opciones de ubicacion las 3 son many2one
 
     }
