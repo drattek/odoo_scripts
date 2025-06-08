@@ -38,63 +38,86 @@ df = pd.read_excel(file_path, sheet_name="Sheet1")  # Replace "Sheet1" with your
 
 for index, row in df.iterrows():
 
-    # Resolve the Many2one field for `unspsc_code_id`
-    unspsc_code = str(row["clave_SAT"]).zfill(8) # Assuming this is the UNSPSC code from your Excel file
-    #unspsc_code = '01010101'
-    unspsc_record = models.execute_kw(
-        db, uid, password,
-        "product.unspsc.code",  # The model name for UNSPSC codes
-        "search_read",
-        [[["code", "=", unspsc_code]], ["id"]]  # Assuming "name" is the field holding the UNSPSC code
-    )
+    columns = df.columns  # Define 'columns' as the list of column names in the DataFrame
+    for field in columns:
+            # Extract the value from the row for the current column
+            field_value = row.get(field, None)
 
-    if unspsc_record:
-        data = {"unspsc_code_id": unspsc_record[0]["id"]}
-    else:
-        print(f"UNSPSC Code '{unspsc_code}' not found. Skipping product '{row['name']}'.")
-        continue
+            # Handle cases where the column value is missing or empty
+            if not field_value:
+                print(f"WARNING: The value for column '{field}' is empty or missing. Skipping.")
+                data[field] = None
+                continue
+            # Specify the model name you want to inspect
+            model_name = "product.product"
+            data = {}
+            # Get the fields (columns) of the model
+            model_fields = models.execute_kw(db, uid, password, model_name, 'fields_get', [],
+                                        {})
+            #validates field on Excel file is on model
+            field_metadata = model_fields  # Initialize field_metadata with model_fields retrieved earlier
 
-    product_data = {
+            if field in field_metadata:
+                # Get the metadata for the specific field
+                metadata = field_metadata[field]
 
-        #"id": row["id_external"],  # id_external OTRO CAMPO EN BD
-        "description": row["Description"],  # Description 
-        "name": row["name"],  # Product Name
-        "default_code": row["default_code"],  # Internal Reference / SKU
-        "x_studio_xcross": row["xcross"],  # xcross OTRO CAMPO EN BD
-        "standard_price": row["standard_price"],  # Cost
-        "lst_price": row["lst_price"],  # Sales price
-        # "uom_id": row["uom_id"],  # ERROR por tipo de campo many2one
-        #"barcode": row["barcode"],  # barcode
-        "type": "consu",  # Product type: 'product', 'consu', or 'service'
-        # "taxes_id": row["taxes_id"],  # ERROR por tipo de campo many2many
-        # "supplier_taxes_id": row["supplier_taxes_id"],  # ERROR por tipo de campo many2many
-        "is_storable": row["is_storable"],  # is_storable
-        "invoice_policy": row["invoice_policy"],  # invoice_policy
-        # "categ_id": row["categ_id"],  # ERROR por tipo de campo many2one
-        # "pos_categ_id": row["pos_categ_id"],  # ERROR por tipo de campo many2many
-        "sale_ok": row["sale_ok"],  # sale_ok
-        "purchase_ok": row["purcahse_ok"],  # purcahse_ok
-        #"available_in_pos": row["available_in_pos"],  # available_in_pos
-        #"is_published": row["is_published"],  # is_published
-        #"self_order_available": row["self_order_available"],  # self_order_available
-        # "route_ids/id": row["`route_ids/id`"],  # ERROR por tipo de campo many2many
-        # "categoria": row["categoria"],  # ERROR No hay como tal un campo de categoria
-        # "CVE_LINEA": row["CVE_LINEA"],  # ERROR No hay como tal un campo en la BD
-        # "cve_linea2": row["cve_linea2"],  # ERROR No hay como tal un campo en la BD
-        "unspsc_code_id": data["unspsc_code_id"],  # no se si sea hs_code en BD, que tiene como etiqueta Código SA
-        # no se si sea hs_code en BD, que tiene como etiqueta Código SA
+                # Access specific information from the metadata
+                field_type = metadata.get('type')  # Retrieve the field type
+                field_label = metadata.get('string')  # Retrieve the label of the field
+                related_model = metadata.get('relation')  # Retrieve the related model, if any
 
-        # "UBICACION": row["UBICACION"],  # ERROR de las 3 opciones de ubicacion las 3 son many2one
+                print(f"Field Name: {field}")
+                print(f"Type: {field_type}")
+                print(f"Label: {field_label}")
+                print(f"Related Model: {related_model}")
 
-    }
+                if field_type == 'many2one' and related_model:
+                    # Search for the field by name
+                    #model_fields = models.execute_kw(db, uid, password, related_model, 'fields_get', [],{})
+                    field_ids = models.execute_kw(
+                        db, uid, password,
+                        related_model, 'search',
+                        [[('name', '=', field_value)]],  # Search criteria
+                        {'limit': 1}  # Retrieve only one record
+                    )
 
-    try:
-        product_id = models.execute_kw(
-            db, uid, password,
-            "product.product", "create",
-            [product_data]
-        )
-        print(f"Created product with ID {product_id}: {product_data['name']}")
-    except Exception as e:
-        print(f"Failed to create product {product_data['name']}: {e}\n")
+                    # If the catalog exists, return its ID
+                    if field_ids:
+                        data[field] = field_ids[0]
+                    else:
+                        # Otherwise, create the category and return its ID
+                        field_id = models.execute_kw(
+                            db, uid, password,
+                            related_model, 'create',
+                            [{'name': field_value}]  # Data for the new category
+                        )
+                        data[field] = field_id
 
+                elif field_type == 'many2many' and related_model:
+                    print(f"The '{field}' field is a many2many relationship with the model: {related_model}")
+                    record = models.execute_kw(
+                        db, uid, password,
+                        related_model,  # The model to query
+                        "search_read",  # The Odoo method to fetch records
+                        [[[field, "=", field_value]], ["id"]]  # Search domain and fields to fetch
+                    )
+
+                    # Map the resolved ID to the column name or set as None if not resolved
+                    if record:
+                        data[field] = record[0]["id"]  # Found: Assign the ID
+                    else:
+                        print(f"WARNING: '{field_value}' not found for column '{field}'.")
+                        data[field] = None  # Not found: Set as None
+
+                else:
+                    data[field] = field_value
+
+    #try:
+    #    product_id = models.execute_kw(
+    #        db, uid, password,
+    #        "product.product", "create",
+    #        [data]
+    #    )
+    #    print(f"Created product with ID {product_id}: {data['name']}")
+    #except Exception as e:
+    #    print(f"Failed to create product {data['name']}: {e}\n")
