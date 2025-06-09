@@ -198,7 +198,6 @@ for index, row in df.iterrows():
                                     [{'name': categ_id, 'parent_id': parent_categ_id_value}]
                                 )
                                 data[field] = categ_id_value
-
                     elif field == 'unspsc_code_id':
                         # Handle specific search condition for unspsc_code_id
                         search_field = 'code' if field == 'unspsc_code_id' else 'name'
@@ -210,14 +209,14 @@ for index, row in df.iterrows():
                              'context': {'lang': 'es_MX'}  # Language specified here (if needed)
                              }
                         )
-
-                    else:
+                    elif field.startswith('x_'):
+                        # Handle specific search condition for fields starting with 'x'
                         # Search for the field by name
 
                         field_ids = models.execute_kw(
                             db, uid, password,
                             related_model, 'search',
-                            [[('name', '=', field_value)]],
+                            [[('x_name', '=', field_value)]],
                             {'limit': 1}
                         )
 
@@ -230,7 +229,30 @@ for index, row in df.iterrows():
                             field_id = models.execute_kw(
                                 db, uid, password,
                                 related_model, 'create',
-                                [{'name': field_value}]
+                                [{'x_name': field_value}]
+                            )
+                            data[field] = field_id
+
+                    else:
+                        # Search for the field by name
+
+                        field_ids = models.execute_kw(
+                            db, uid, password,
+                            related_model, 'search',
+                            [[('x_name', '=', field_value)]],
+                            {'limit': 1}
+                        )
+
+                        if field_ids:
+                            print(f'Field already exist.. \'{field}\' with value \'{field_value}\'..\'')
+                            data[field] = field_ids[0]
+                        else:
+                            # Create the related record if not found
+                            print(f'Field not found, creating record.. \'{field}\' with value \'{field_value}\'..\'')
+                            field_id = models.execute_kw(
+                                db, uid, password,
+                                related_model, 'create',
+                                [{'x_name': field_value}]
                             )
                             data[field] = field_id
 
